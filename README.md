@@ -1,7 +1,7 @@
 # 🧠 Architect: An Autonomous Web Research Agent
 
 <p align="center">
-  <img src="./static/browser-use.png" alt="Architect Logo" width="600">
+  <img src="./static/architect.png" alt="Architect Logo" width="600">
 </p>
 
 ## Overview
