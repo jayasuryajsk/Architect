@@ -1,140 +1,117 @@
-Absolutely — here’s a clean, updated README tailored for your fork, which now includes The Architect as a native, recursive AI agent layer built on top of browser-use.
-
-⸻
-
-🧠 New README.md for Your Forked architect Repo
+# 🧠 Architect: An Autonomous Web Research Agent
 
 <p align="center">
-  <img src="./static/browser-use.png" alt="Architect Logo" width="auto">
+  <img src="./static/browser-use.png" alt="Architect Logo" width="600">
 </p>
 
-<h1 align="center">🧠 Architect: Autonomous Agents Built on Browser-Use</h1>
+## Overview
 
-<div align="center">
-  <b>Enable recursive, goal-driven AI agents to plan, search, read, and think — directly inside a browser.</b><br/><br/>
-  Built on top of <a href="https://github.com/browser-use/browser-use">browser-use</a>, Architect adds long-lived agents with memory, task planning, and dynamic reasoning.
-</div>
+Architect is an autonomous AI agent system built on top of [browser-use](https://github.com/browser-use/browser-use) that performs web-based research tasks using Google's Gemini models. It combines browser automation with direct LLM queries to overcome common challenges in web research, including bot protection and rate limiting.
 
-<br/>
+Unlike traditional chatbots, Architect is goal-driven. Give it a research objective, and it will:
+1. Plan the necessary steps
+2. Spawn specialized sub-agents for research tasks
+3. Navigate websites to gather information
+4. Smartly fallback to Gemini's knowledge when faced with bot protection
+5. Synthesize results into coherent summaries
+6. Store everything in persistent memory
 
----
+## 🌟 Key Features
 
-## 🚀 What Is Architect?
+- **Google Gemini Integration**: Leverages Gemini 1.5 Pro for advanced reasoning and research
+- **Hybrid Browser/Direct-LLM Approach**: Attempts to use real browsers first, falls back to direct LLM queries when needed
+- **Bot Protection Handling**: Detects and bypasses site blocks from services like Cloudflare or aggressive bot detection
+- **Modular Agent Architecture**: Includes ArchitectAgent and ResearcherAgent with more planned
+- **JSON-based Memory**: All research steps and results stored in structured format for analysis
+- **Playwright-based Web Interaction**: Uses modern browser automation instead of legacy Selenium approaches
 
-**Architect** is a self-organizing AI system that:
-- Accepts high-level goals (e.g., "Compare Manus vs OWL agents")
-- Plans tasks
-- Spawns intelligent subagents (`Researcher`, `Critic`, etc.)
-- Reads real webpages using `browser-use`
-- Summarizes and stores results in persistent memory
-- Loops and evolves with each cycle
+## 🚀 Installation
 
-It’s like AutoGPT — but real. And it works. Locally.
+1. Clone the repository:
+```bash
+git clone https://github.com/jayasuryajsk/Architect.git
+cd Architect
+```
 
----
-
-## ✨ Key Features
-
-- 🔁 Recursive, autonomous agent architecture
-- 🌐 Real web browsing via `browser-use`
-- 🧠 LLM reasoning with Ollama or OpenAI
-- 🗂 Shared memory logs (JSON)
-- 🛠 Modular agents (`ArchitectAgent`, `ResearcherAgent`, more coming)
-- 🧰 Simple to extend and control
-
----
-
-## 📦 Installation
-
-Install system requirements:
-
+2. Install the required dependencies:
 ```bash
 pip install -e .
-playwright install chromium
+python -m playwright install
+```
 
-Make sure ollama is running if using a local LLM.
+3. Create a `.env` file with your Gemini API key:
+```
+GEMINI_API_KEY=your-key-here
+```
 
-⸻
+## 🔍 Usage
 
-🧪 Run The Architect
+Run Architect with a research goal:
 
-PYTHONPATH=. python run_architect.py --goal "Research how to make a Chrome extension"
+```bash
+python run_architect.py --goal "Compare SpaceX and Blue Origin rocket technology"
+```
 
-This will:
-	•	Launch ArchitectAgent
-	•	Plan the task
-	•	Spawn a ResearcherAgent
-	•	Use browser-use to search + summarize the web
-	•	Write logs to browser_use/architect/memory/memory.json
+This command will:
+- Analyze the goal and break it into research subtasks
+- Spawn a ResearcherAgent to investigate each subtask
+- Try browser automation first, smartly falling back to Gemini when encountering bot protection
+- Store results in `browser_use/architect/memory/memory.json`
 
-⸻
+## 🧠 Agent Architecture
 
-🧠 Agents Included
+### ArchitectAgent
+The main coordinator that breaks down high-level goals into manageable subtasks and delegates them to specialized agents.
 
-Agent	Description
-ArchitectAgent	Main planner, breaks goals into tasks, spawns agents
-ResearcherAgent	Searches web, extracts info, summarizes
-(soon) CriticAgent	Reviews outputs, flags low-confidence or gaps
-(soon) BuilderAgent	Uses LLM + browser to generate or edit code/scripts
+### ResearcherAgent
+Handles web research by:
+1. Creating a research plan (URLs to visit, information to extract)
+2. Using browser automation to navigate and extract content
+3. Falling back to direct Gemini queries when websites block automated access
+4. Summarizing findings into coherent research outputs
 
+### Coming Soon
+- **CriticAgent**: Evaluates research quality and identifies gaps
+- **BuilderAgent**: Creates deliverables based on research findings (documents, code, etc.)
 
+## 🛠️ Smart Fallback System
 
-⸻
+Architect includes a sophisticated fallback mechanism that handles common web research obstacles:
 
-📁 Project Layout
+1. First attempts browser automation with headless=False to reduce detection
+2. Monitors for indicators of bot protection ("access denied", "page crashed", etc.)
+3. When detected, gracefully falls back to direct Gemini queries
+4. Maintains a consistent output format regardless of data source
 
+This approach is particularly effective for sports sites, news outlets, and social media platforms that employ aggressive bot protection.
+
+## 📊 Project Structure
+
+```
 browser_use/
-├── architect/
-│   ├── agents/
-│   ├── memory/
-│   └── tools/
-├── agent/
-├── browser/
-...
-run_architect.py
+├── architect/               # Architect-specific components
+│   ├── agents/              # Agent implementations
+│   ├── memory/              # Memory storage system
+│   └── tools/               # LLM interface and utilities
+├── agent/                   # Core agent functionality 
+├── browser/                 # Browser automation components
+└── ...                      # Other browser-use components
+```
 
+## 📋 Requirements
 
+- Python 3.11+
+- Google Gemini API access
+- Playwright for browser automation
 
-⸻
+## 📄 License
 
-🛣 Roadmap
-	•	Add reflection + planning loop
-	•	CriticAgent to verify research quality
-	•	BuilderAgent for creative/code tasks
-	•	Live terminal + web UI for watching thoughts in real time
-	•	SQLite/VectorDB long-term memory
-	•	Deployable task engine for long-lived goal execution
+MIT License - See LICENSE file for details.
 
-⸻
+## 🤝 Credits
 
-🤝 Contribute
-
-This is a bleeding-edge fork meant to explore what’s possible with local agents + browser control.
-Contributions, issues, ideas, memes — all welcome.
-
-⸻
-
-🧠 Philosophy
-
-Don’t prompt a chatbot.
-Give an agent a goal — and let it build the solution.
-
-⸻
-
-❤️ Credits
-
-Built on top of browser-use by Gregor & Magnus.
-
-Architect is a friendly fork maintained independently by ✨you✨.
-
-⸻
-
-
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/06fa3078-8461-4560-b434-445510c1766f" width="400"/><br/>
-  <sub>Made with 🧠 and ☕ — optimized for the age of agents.</sub>
-</p>
+- Built upon the [browser-use](https://github.com/browser-use/browser-use) framework
+- Uses Google's Gemini models for reasoning and fallback research
 ```
 
 
