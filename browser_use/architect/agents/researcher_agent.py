@@ -3,6 +3,7 @@ import json
 from typing import Any, Dict, List
 
 from browser_use import Agent, Browser, BrowserConfig
+from browser_use.architect.agents.base_agent import BaseAgent
 from browser_use.architect.memory.memory_manager import log_message
 from browser_use.architect.tools.llm_interface import summarize, run_and_parse, _run_llm_with_retry, _run_llm
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -10,11 +11,9 @@ import os
 from pydantic import SecretStr
 
 
-class ResearcherAgent:
-    def __init__(self, goal: str, model: str = "gemini-1.5-pro"):
-        self.name = "Researcher"
-        self.goal = goal
-        self.model = model
+class ResearcherAgent(BaseAgent):
+    def __init__(self, goal: str, model: str = "gemini-2.0-flash-lite"):
+        super().__init__("Researcher", goal, model)
 
     def _validate_actions(self, actions: List[Dict[str, Any]]) -> None:
         for action in actions:
@@ -25,8 +24,13 @@ class ResearcherAgent:
                 raise ValueError(f"Params must be a dict: {params}")
             if action_type == "open_url" and not isinstance(params.get("url"), str):
                 raise ValueError("open_url needs a string 'url'")
-            elif action_type == "wait" and not isinstance(params.get("timeout"), (int, float)):
-                raise ValueError("wait needs numeric 'timeout'")
+            elif action_type == "wait":
+                if not isinstance(params.get("timeout"), (int, float)):
+                    raise ValueError("wait needs numeric 'timeout'")
+                # Enforce reasonable wait time (max 30 seconds in milliseconds)
+                if params.get("timeout", 0) > 30000:
+                    params["timeout"] = 5000
+                    log_message(self.name, f"⚠️ Wait time too long, limiting to 5000ms")
             elif action_type in {"click_element", "scroll_to"} and not isinstance(params.get("selector"), str):
                 raise ValueError(f"{action_type} needs a string 'selector'")
             elif action_type == "extract_content":
@@ -44,7 +48,7 @@ Respond ONLY with this format:
   "name": "AgentOutput",
   "parameters": {{
     "action": [
-      {{ "open_url": {{ "url": "https://developer.chrome.com/docs/extensions/" }} }},
+      {{ "open_url": {{ "url": "https://www.google.com/search?q=ai+image+generators+features" }} }},
       {{ "wait": {{ "timeout": 2000 }} }},
       {{ "extract_content": {{ "selector": "main", "attribute": "text" }} }}
     ],
@@ -60,7 +64,8 @@ Rules:
 - Use only supported actions: open_url, wait, click_element, scroll_to, extract_content
 - One action per dictionary
 - Parameters must be correctly typed
-- Return only the JSON, no extra text."""
+- Return only the JSON, no extra text
+- For wait action, timeout is in MILLISECONDS (1000ms = 1 second). Never use more than 5000ms (5 seconds)."""
 
         result = await run_and_parse(prompt, self.model)
         if "error" in result:
@@ -69,13 +74,26 @@ Rules:
         self._validate_actions(result["parameters"]["action"])
         return result
 
-    async def run(self) -> str:
+    async def run(self, callback=None) -> str:
         log_message(self.name, f"🎯 Starting research: {self.goal}")
+
+        if callback:
+            await callback("research_start", {
+                "agent": self.name,
+                "goal": self.goal
+            })
 
         try:
             plan = await self._generate_task_plan()
         except Exception as e:
             log_message(self.name, f"⚠️ Plan generation failed: {e}")
+            
+            if callback:
+                await callback("error", {
+                    "agent": self.name,
+                    "error": f"Plan generation failed: {e}"
+                })
+                
             return await summarize(f"Failed to create task plan: {e}", model=self.model)
 
         try:
@@ -84,7 +102,7 @@ Rules:
             # Create a LangChain Gemini model for the agent
             gemini_api_key = os.getenv("GEMINI_API_KEY")
             llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-pro", 
+                model="gemini-2.0-flash-lite", 
                 api_key=SecretStr(gemini_api_key) if gemini_api_key else None
             )
             agent = Agent(task=json.dumps(plan), browser=browser, llm=llm)
@@ -93,33 +111,36 @@ Rules:
                 raw_result = await asyncio.wait_for(agent.run(), timeout=300)
                 
                 # Check if the result indicates a failure due to bot protection
-                if not raw_result or "access denied" in raw_result.lower() or "page crashed" in raw_result.lower():
-                    raise ValueError("Browser access denied or page crashed - likely bot protection")
+                # Using safer string checking to prevent .lower() on non-string objects
+                if not raw_result:
+                    log_message(self.name, f"⚠️ Browser returned empty result")
+                    return "Browser automation encountered an issue with empty results. Please try a different search query or approach."
+                
+                # Make sure we're dealing with a string before calling .lower()
+                if isinstance(raw_result, str):
+                    result_lower = raw_result.lower()
+                    if "access denied" in result_lower or "page crashed" in result_lower:
+                        log_message(self.name, f"⚠️ Browser access issue: {raw_result}")
+                        return "Browser automation encountered access issues. Please try a different search query or approach."
+                else:
+                    # If raw_result is not a string, handle it appropriately
+                    log_message(self.name, f"⚠️ Browser returned non-string result: {type(raw_result)}")
+                    raw_result = str(raw_result)  # Convert to string for further processing
                 
                 parsed = await _run_llm_with_retry(
                     raw_result, self.model, required_fields=["current_state", "action"]
                 )
 
                 if "error" in parsed:
-                    raise ValueError(f"Failed to parse result: {parsed}")
+                    log_message(self.name, f"⚠️ Failed to parse result: {parsed}")
+                    return f"Error parsing browser results: {parsed.get('error', 'Unknown parsing error')}"
 
                 return await summarize(str(parsed), model=self.model)
                 
             except (ValueError, asyncio.TimeoutError) as browser_error:
-                # Fall back to direct Gemini query when browser automation fails
-                log_message(self.name, f"🔄 Browser automation failed: {browser_error}. Falling back to direct Gemini query.")
-                
-                # Extract the core research question from the goal
-                research_topic = self.goal.replace("Research task: ", "").strip()
-                fallback_prompt = f"""
-                I need information on: {research_topic}
-                
-                Please provide a comprehensive answer with the latest available information.
-                If this is about a scheduled event or future date, please mention how current your information is.
-                """
-                
-                direct_result = await _run_llm(fallback_prompt, self.model)
-                return f"[DIRECT GEMINI RESPONSE - Browser automation failed] {direct_result}"
+                # Instead of falling back, return the error
+                log_message(self.name, f"❌ Browser automation failed: {browser_error}.")
+                return f"Browser automation failed: {browser_error}. Please try again with a different query."
 
         except Exception as e:
             log_message(self.name, f"❌ Runtime error: {e}")

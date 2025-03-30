@@ -188,3 +188,47 @@ gcp-login.json
 *.jsonl
 
 uv.lock
+
+# Ignore node_modules directory
+node_modules/
+**/node_modules/
+**/node_modules/@next/
+
+# Ignore build directories
+.next/
+*/.next/
+out/
+build/
+dist/
+
+# Ignore specific large files
+**/*.node
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
