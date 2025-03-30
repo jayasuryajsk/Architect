@@ -14,7 +14,7 @@ class RetryError(Exception):
         self.message = message
         super().__init__(f"Error {status_code}: {message}")
 
-async def run_and_parse(prompt: str, model: str = "gemini-1.5-pro") -> Dict[str, Any]:
+async def run_and_parse(prompt: str, model: str = "gemini-2.0-flash-lite") -> Dict[str, Any]:
     """Run Gemini and parse the output as JSON if possible."""
     try:
         model_instance = genai.GenerativeModel(model_name=model)
