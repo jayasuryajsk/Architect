@@ -1,4 +1,5 @@
 import uuid
+import logging
 from typing import Callable, Optional, List, Dict, Any
 
 from browser_use.architect.agents.base_agent import BaseAgent
@@ -9,7 +10,12 @@ from browser_use.architect.agents.writer_agent import WriterAgent
 from browser_use.architect.agents.coder_agent import CoderAgent
 from browser_use.architect.agents.summarizer_agent import SummarizerAgent
 from browser_use.architect.agents.meta_agent import MetaAgent
+from browser_use.architect.agents.self_evolving_meta_agent import SelfEvolvingMetaAgent
 from browser_use.architect.memory.memory_manager import log_message, save_task_result
+
+# Configure logging for verbose output
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class ArchitectAgent(BaseAgent):
@@ -57,6 +63,15 @@ class ArchitectAgent(BaseAgent):
                     agent_name = f"Unknown-{agent_type}"
                 else:
                     agent_name = agent.name
+                    
+                    # Log detailed info for SelfEvolvingMetaAgent
+                    if agent_type == "SelfEvolvingMeta" or isinstance(agent, SelfEvolvingMetaAgent):
+                        logger.info("\n" + "="*80)
+                        logger.info("🧬 ARCHITECT DELEGATING TO SELF-EVOLVING META AGENT")
+                        logger.info(f"   Agent Type: {agent_type}")
+                        logger.info(f"   Goal: {subgoal}")
+                        logger.info("="*80 + "\n")
+                    
                     try:
                         log_message(self.name, f"🔄 Starting execution of {agent_name}")
                         result = await agent.run(callback)
@@ -170,6 +185,9 @@ class ArchitectAgent(BaseAgent):
             # For summarizer, we need to provide results later
             # Creating with empty results that will be updated before running
             return SummarizerAgent(goal=self.goal, results=[], model=self.model)
+        elif agent_type.lower() in ["self-evolving", "evolving", "selfevolving"]:
+            log_message(self.name, f"🧬 Creating Self-Evolving MetaAgent for: {subgoal}")
+            return SelfEvolvingMetaAgent(goal=subgoal, model=self.model)
         else:
             log_message(self.name, f"Unknown agent type '{agent_type}', using MetaAgent")
             # Use MetaAgent for unknown agent types

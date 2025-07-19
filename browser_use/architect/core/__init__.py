@@ -1,0 +1,1 @@
+# Core components for SOTA self-evolving agent system
